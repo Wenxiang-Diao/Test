@@ -1,0 +1,3 @@
+resident_id,date,sleep_score,total_sleep_minutes,awake_minutes,light_sleep_minutes,deep_sleep_minutes,sleep_efficiency,total_out_of_bed_minutes,bed_exit_count,turn_count,avg_breathing_rate,avg_heart_rate,apnea_event_count,bed_exit_count_from_events,total_out_of_bed_minutes_from_events,longest_out_of_bed_minutes_from_events
+R001,2026-06-02,87,473,14,312,147,0.97,15,3,2,16,70,0,5,675.4,623.9
+R001,2026-06-03,87,530,37,318,175,0.93,9,2,1,17,71,0,3,25.5,22.8

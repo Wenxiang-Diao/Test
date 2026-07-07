@@ -1,0 +1,30 @@
+timestamp,resident_id,event_type,detail,confidence
+2026-05-25 13:21:21,R001,abnormal_sleep_status,abnormalSleep=1 (SLEEP_DURATION_OVER_12_HOURS),0.6
+2026-05-25 19:34:07,R001,device_offline,mac=863060076192434,0.0
+2026-05-26 00:34:10,R001,invalid_motion_status,motionStatus=255,0.2
+2026-05-26 22:54:59,R001,device_offline,mac=863060076192434,0.0
+2026-05-27 09:22:45,R001,abnormal_sleep_status,abnormalSleep=2 (LONG_NO_PERSON_DURATION),0.6
+2026-05-27 09:22:46,R001,empty_sleep_summary,"Ignored sleepQualityAnalysis=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",0.3
+2026-06-02 00:28:52,R001,heart_rate_out_of_range,heartRateValue=0.0,0.2
+2026-06-02 00:28:53,R001,breathing_rate_out_of_range,breathValue=0.0,0.2
+2026-06-02 00:28:53,R001,breathing_status_issue,breathInform=4 (DETECTING),0.5
+2026-06-02 00:43:51,R001,heart_rate_out_of_range,heartRateValue=0.0,0.2
+2026-06-02 00:43:52,R001,breathing_rate_out_of_range,breathValue=0.0,0.2
+2026-06-02 00:43:52,R001,breathing_status_issue,breathInform=4 (DETECTING),0.5
+2026-06-02 00:48:17,R001,abnormal_sleep_status,abnormalSleep=0 (SLEEP_DURATION_UNDER_4_HOURS),0.6
+2026-06-02 01:18:56,R001,empty_sleep_summary,"Ignored sleepQualityAnalysis=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",0.3
+2026-06-02 09:01:40,R001,heart_rate_out_of_range,heartRateValue=0.0,0.2
+2026-06-02 09:01:40,R001,breathing_rate_out_of_range,breathValue=0.0,0.2
+2026-06-02 09:01:41,R001,breathing_status_issue,breathInform=4 (DETECTING),0.5
+2026-06-02 09:11:04,R001,heart_rate_out_of_range,heartRateValue=0.0,0.2
+2026-06-02 09:11:04,R001,breathing_rate_out_of_range,breathValue=0.0,0.2
+2026-06-02 09:11:05,R001,breathing_status_issue,breathInform=4 (DETECTING),0.5
+2026-06-02 19:39:30,R001,empty_sleep_summary,"Ignored sleepQualityAnalysis=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",0.3
+2026-06-03 00:04:48,R001,heart_rate_out_of_range,heartRateValue=0.0,0.2
+2026-06-03 00:04:48,R001,breathing_rate_out_of_range,breathValue=0.0,0.2
+2026-06-03 00:04:49,R001,breathing_status_issue,breathInform=4 (DETECTING),0.5
+2026-06-03 00:31:54,R001,empty_sleep_summary,"Ignored sleepQualityAnalysis=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",0.3
+2026-06-03 09:15:25,R001,heart_rate_out_of_range,heartRateValue=0.0,0.2
+2026-06-03 09:15:25,R001,breathing_rate_out_of_range,breathValue=0.0,0.2
+2026-06-03 09:15:26,R001,breathing_status_issue,breathInform=4 (DETECTING),0.5
+2026-06-02 00:00:00,R001,bed_event_summary_mismatch,"Sparse getIntoBed events produced an out-of-bed total of 675.4 minutes, while sleepQualityAnalysis reports 15.0 minutes. Backend summary uses protocol total as proxy.",0.5

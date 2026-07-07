@@ -1,0 +1,22 @@
+resident_id,timestamp,event_type,status,raw_value,confidence
+R001,2026-05-25 01:28:17,device_online_status,ONLINE,1,1.0
+R001,2026-05-25 13:21:21,abnormal_sleep_status,SLEEP_DURATION_OVER_12_HOURS,1,1.0
+R001,2026-05-25 19:34:07,device_online_status,OFFLINE,0,1.0
+R001,2026-05-26 00:34:09,device_online_status,ONLINE,1,1.0
+R001,2026-05-26 22:54:59,device_online_status,OFFLINE,0,1.0
+R001,2026-05-27 01:02:52,device_online_status,ONLINE,1,1.0
+R001,2026-05-27 09:22:45,abnormal_sleep_status,LONG_NO_PERSON_DURATION,2,1.0
+R001,2026-06-02 00:22:26,device_online_status,ONLINE,1,1.0
+R001,2026-06-02 00:22:54,breathing_status,NORMAL,1,1.0
+R001,2026-06-02 00:28:53,breathing_status,DETECTING,4,1.0
+R001,2026-06-02 00:37:30,breathing_status,NORMAL,1,1.0
+R001,2026-06-02 00:43:52,breathing_status,DETECTING,4,1.0
+R001,2026-06-02 00:48:17,abnormal_sleep_status,SLEEP_DURATION_UNDER_4_HOURS,0,1.0
+R001,2026-06-02 01:14:02,breathing_status,NORMAL,1,1.0
+R001,2026-06-02 09:01:41,breathing_status,DETECTING,4,1.0
+R001,2026-06-02 09:03:50,breathing_status,NORMAL,1,1.0
+R001,2026-06-02 09:11:05,breathing_status,DETECTING,4,1.0
+R001,2026-06-02 19:34:35,breathing_status,NORMAL,1,1.0
+R001,2026-06-03 00:04:49,breathing_status,DETECTING,4,1.0
+R001,2026-06-03 00:26:59,breathing_status,NORMAL,1,1.0
+R001,2026-06-03 09:15:26,breathing_status,DETECTING,4,1.0

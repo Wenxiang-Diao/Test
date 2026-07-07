@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: comp9900-postgres-en
+    environment:
+      POSTGRES_USER: comp9900
+      POSTGRES_PASSWORD: comp9900
+      POSTGRES_DB: sleep_monitor_en
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata_en:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comp9900 -d sleep_monitor_en"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata_en:

@@ -1,0 +1,6 @@
+2026-05-26 00:34:09'{"deviceType":"JLSP01","method":"online","time":1779726849896,"id":7541107681500482912,"params":{"online":"1"},"mac":"863060076192434"}'
+2026-05-26 00:34:10'{"deviceType":"JLSP01","method":"someoneExists","time":1779726850346,"id":5379006534599724474,"params":{"someoneExists":"0"},"mac":"863060076192434"}'
+2026-05-26 00:34:10'{"deviceType":"JLSP01","method":"motionStatus","time":1779726850405,"id":2072448399788951326,"params":{"motionStatus":"255"},"mac":"863060076192434"}'
+2026-05-26 09:41:53'{"deviceType":"JLSP01","method":"awakeDuration","time":1779759713078,"id":140000479836063936,"params":{"awakeDuration":"0"},"mac":"863060076192434"}'
+2026-05-26 09:43:16'{"deviceType":"JLSP01","method":"sleepScore","time":1779759796811,"id":245442966010809552,"params":{"sleepScore":"0"},"mac":"863060076192434"}'
+2026-05-26 22:54:59'{"deviceType":"JLSP01","method":"online","time":1779807299423,"id":7824149881084660396,"params":{"online":"0"},"mac":"863060076192434"}'

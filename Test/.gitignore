@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+.venv/
+dist/
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# Build
+*.tsbuildinfo
+
+# OS / editor
+.DS_Store
+~$*
+
+# Local tooling
+.agents/
+.codex/
+
+# Archives (use git instead)
+*.zip
+
+# Large local drafts — keep markdown in repo; exclude binary copies
+*.pdf
+*.docx

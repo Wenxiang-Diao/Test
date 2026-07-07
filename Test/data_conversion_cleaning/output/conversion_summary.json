@@ -1,0 +1,136 @@
+{
+  "files": {
+    "20260525device863060076192434_request_log.txt": {
+      "parsed": 65494,
+      "failed": 0,
+      "first_timestamp": "2026-05-25 01:28:17",
+      "last_timestamp": "2026-05-25 19:34:07",
+      "method_counts": {
+        "online": 2,
+        "someoneExists": 1,
+        "motionStatus": 4317,
+        "movementSigns": 36426,
+        "heartRateValue": 12231,
+        "breathValue": 12186,
+        "sleepComprehensiveStatus": 110,
+        "sleepStatus": 110,
+        "awakeDuration": 1,
+        "lightSleepDuration": 70,
+        "deepSleepDuration": 39,
+        "abnormalSleep": 1
+      }
+    },
+    "20260526device863060076192434_request_log(1).txt": {
+      "parsed": 6,
+      "failed": 0,
+      "first_timestamp": "2026-05-26 00:34:09",
+      "last_timestamp": "2026-05-26 22:54:59",
+      "method_counts": {
+        "online": 2,
+        "someoneExists": 1,
+        "motionStatus": 1,
+        "awakeDuration": 1,
+        "sleepScore": 1
+      }
+    },
+    "20260527device863060076192434_request_log.txt": {
+      "parsed": 51778,
+      "failed": 0,
+      "first_timestamp": "2026-05-27 01:02:52",
+      "last_timestamp": "2026-05-27 09:22:46",
+      "method_counts": {
+        "online": 1,
+        "someoneExists": 2,
+        "motionStatus": 2029,
+        "movementSigns": 30471,
+        "heartRateValue": 9558,
+        "breathValue": 9558,
+        "sleepComprehensiveStatus": 51,
+        "sleepStatus": 51,
+        "awakeDuration": 3,
+        "lightSleepDuration": 34,
+        "deepSleepDuration": 16,
+        "abnormalSleep": 1,
+        "getIntoBed": 1,
+        "sleepScore": 1,
+        "sleepQualityAnalysis": 1
+      }
+    },
+    "20260602device863060076192434_request_log.txt": {
+      "parsed": 78423,
+      "failed": 0,
+      "first_timestamp": "2026-06-02 00:22:26",
+      "last_timestamp": "2026-06-02 23:59:59",
+      "method_counts": {
+        "online": 1,
+        "someoneExists": 9,
+        "motionStatus": 2131,
+        "getIntoBed": 11,
+        "movementSigns": 45875,
+        "heartRateValue": 15070,
+        "breathValue": 15071,
+        "breathInform": 9,
+        "sleepStatus": 79,
+        "sleepComprehensiveStatus": 77,
+        "awakeDuration": 5,
+        "abnormalSleep": 1,
+        "sleepScore": 4,
+        "sleepQualityAnalysis": 4,
+        "lightSleepDuration": 50,
+        "deepSleepDuration": 26
+      }
+    },
+    "20260603device863060076192434_request_log.txt": {
+      "parsed": 56197,
+      "failed": 0,
+      "first_timestamp": "2026-06-03 00:00:00",
+      "last_timestamp": "2026-06-03 09:20:10",
+      "method_counts": {
+        "breathValue": 10766,
+        "movementSigns": 32489,
+        "heartRateValue": 10766,
+        "getIntoBed": 5,
+        "sleepStatus": 57,
+        "sleepComprehensiveStatus": 56,
+        "lightSleepDuration": 35,
+        "someoneExists": 3,
+        "motionStatus": 1988,
+        "breathInform": 3,
+        "sleepScore": 3,
+        "sleepQualityAnalysis": 3,
+        "awakeDuration": 4,
+        "deepSleepDuration": 19
+      }
+    }
+  },
+  "method_counts": {
+    "online": 6,
+    "someoneExists": 16,
+    "motionStatus": 10466,
+    "movementSigns": 145261,
+    "heartRateValue": 47625,
+    "breathValue": 47581,
+    "sleepComprehensiveStatus": 294,
+    "sleepStatus": 297,
+    "awakeDuration": 14,
+    "lightSleepDuration": 189,
+    "deepSleepDuration": 100,
+    "abnormalSleep": 3,
+    "sleepScore": 9,
+    "getIntoBed": 17,
+    "sleepQualityAnalysis": 8,
+    "breathInform": 12
+  },
+  "outputs": {
+    "bed_events": 24,
+    "vital_samples": 2353,
+    "daily_sleep_summary": 2,
+    "daily_sleep_analysis": 2,
+    "activity_samples": 2392,
+    "presence_events": 16,
+    "sleep_stage_samples": 297,
+    "sleep_comprehensive_status": 294,
+    "device_status_events": 21,
+    "data_quality_events": 29
+  }
+}
