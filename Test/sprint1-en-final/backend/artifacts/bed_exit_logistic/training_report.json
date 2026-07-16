@@ -1,0 +1,108 @@
+{
+  "model_type": "baseline_rules_plus_logistic_regression",
+  "feature_columns": [
+    "rule_score",
+    "hour",
+    "is_night",
+    "is_common_exit_period",
+    "heart_rate_delta_from_daily_avg",
+    "breathing_rate_delta_from_daily_avg",
+    "movement_signs",
+    "movement_mean_10m",
+    "movement_slope_10m",
+    "bed_exit_count_so_far",
+    "minutes_since_last_bed_exit",
+    "confidence_mean",
+    "missing_rate_10m",
+    "activity_status_ACTIVE",
+    "motion_status_ACTIVE",
+    "sleep_status_AWAKE",
+    "sleep_status_LIGHT_SLEEP"
+  ],
+  "train": {
+    "name": "train",
+    "samples": 269,
+    "positives": {
+      "15": 10,
+      "30": 16,
+      "60": 28
+    },
+    "negatives": {
+      "15": 259,
+      "30": 253,
+      "60": 241
+    },
+    "scale_pos_weight": {
+      "15": 25.9,
+      "30": 15.8125,
+      "60": 8.6071
+    }
+  },
+  "validation": {
+    "name": "validation",
+    "samples": 107,
+    "positives": {
+      "15": 5,
+      "30": 8,
+      "60": 14
+    },
+    "negatives": {
+      "15": 102,
+      "30": 99,
+      "60": 93
+    },
+    "scale_pos_weight": {
+      "15": 20.4,
+      "30": 12.375,
+      "60": 6.6429
+    }
+  },
+  "blend": "final_probability = 0.70 * logistic_probability + 0.30 * rule_score",
+  "models": {
+    "15": {
+      "positive_count": 10,
+      "negative_count": 259,
+      "class_weight": "balanced",
+      "validation_pr_auc": 0.4832,
+      "validation_precision_at_0_35": 0.2,
+      "validation_recall_at_0_35": 1.0,
+      "validation_f1_at_0_35": 0.3333,
+      "validation_true_positive_at_0_35": 5,
+      "validation_false_positive_at_0_35": 20,
+      "validation_true_negative_at_0_35": 82,
+      "validation_false_negative_at_0_35": 0,
+      "validation_positive_count": 5,
+      "validation_negative_count": 102
+    },
+    "30": {
+      "positive_count": 16,
+      "negative_count": 253,
+      "class_weight": "balanced",
+      "validation_pr_auc": 0.3452,
+      "validation_precision_at_0_35": 0.3333,
+      "validation_recall_at_0_35": 1.0,
+      "validation_f1_at_0_35": 0.5,
+      "validation_true_positive_at_0_35": 8,
+      "validation_false_positive_at_0_35": 16,
+      "validation_true_negative_at_0_35": 83,
+      "validation_false_negative_at_0_35": 0,
+      "validation_positive_count": 8,
+      "validation_negative_count": 99
+    },
+    "60": {
+      "positive_count": 28,
+      "negative_count": 241,
+      "class_weight": "balanced",
+      "validation_pr_auc": 0.7106,
+      "validation_precision_at_0_35": 0.56,
+      "validation_recall_at_0_35": 1.0,
+      "validation_f1_at_0_35": 0.7179,
+      "validation_true_positive_at_0_35": 14,
+      "validation_false_positive_at_0_35": 11,
+      "validation_true_negative_at_0_35": 82,
+      "validation_false_negative_at_0_35": 0,
+      "validation_positive_count": 14,
+      "validation_negative_count": 93
+    }
+  }
+}

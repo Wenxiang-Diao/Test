@@ -1,0 +1,43 @@
+{
+  "dataset_path": "D:\\desktop\\\u8d44\u6599\\9900\\codex\\Test\\sprint1-en-final\\backend\\artifacts\\bed_exit_xgboost\\supervised_bed_exit_dataset.csv",
+  "total_samples": 376,
+  "validation_start": "2026-06-03",
+  "train": {
+    "name": "train",
+    "samples": 269,
+    "positives": {
+      "15": 10,
+      "30": 16,
+      "60": 28
+    },
+    "negatives": {
+      "15": 259,
+      "30": 253,
+      "60": 241
+    },
+    "scale_pos_weight": {
+      "15": 25.9,
+      "30": 15.8125,
+      "60": 8.6071
+    }
+  },
+  "validation": {
+    "name": "validation",
+    "samples": 107,
+    "positives": {
+      "15": 5,
+      "30": 8,
+      "60": 14
+    },
+    "negatives": {
+      "15": 102,
+      "30": 99,
+      "60": 93
+    },
+    "scale_pos_weight": {
+      "15": 20.4,
+      "30": 12.375,
+      "60": 6.6429
+    }
+  }
+}
