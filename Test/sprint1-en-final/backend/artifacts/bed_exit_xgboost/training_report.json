@@ -30,7 +30,12 @@
     "sleep_status_DEEP_SLEEP",
     "sleep_status_LIGHT_SLEEP",
     "sleep_status_NONE",
-    "sleep_status_UNKNOWN"
+    "sleep_status_UNKNOWN",
+    "previous_night_sleep_efficiency",
+    "previous_night_sleep_score",
+    "previous_night_total_sleep_minutes",
+    "previous_night_bed_exit_count",
+    "previous_night_summary_missing"
   ],
   "train": {
     "name": "train",
@@ -70,51 +75,111 @@
       "60": 6.6429
     }
   },
+  "probability_objective": "minimise log loss and calibrate with training-only out-of-fold Platt scaling",
+  "calibration": "3-fold stratified out-of-fold predictions on the training split",
+  "horizon_constraint": "P15 <= P30 <= P60",
   "models": {
     "15": {
       "positive_count": 10,
       "negative_count": 259,
-      "scale_pos_weight": 25.9,
-      "validation_pr_auc": 0.72,
-      "validation_precision_at_0_35": 0.2105,
-      "validation_recall_at_0_35": 0.8,
-      "validation_f1_at_0_35": 0.3333,
-      "validation_true_positive_at_0_35": 4,
-      "validation_false_positive_at_0_35": 15,
-      "validation_true_negative_at_0_35": 87,
-      "validation_false_negative_at_0_35": 1,
-      "validation_positive_count": 5,
-      "validation_negative_count": 102
+      "class_weight": null,
+      "alert_threshold": 0.3,
+      "raw_validation": {
+        "pr_auc": 0.7006,
+        "brier_score": 0.0362,
+        "brier_skill_score": 0.1883,
+        "log_loss": 0.1345,
+        "ece_5_bin": 0.0562,
+        "mean_predicted_probability": 0.0591,
+        "observed_positive_rate": 0.0467,
+        "mean_probability_gap": 0.0124,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "predicted_positive_count": 0
+      },
+      "calibrated_validation": {
+        "pr_auc": 0.7006,
+        "brier_score": 0.0359,
+        "brier_skill_score": 0.1942,
+        "log_loss": 0.126,
+        "ece_5_bin": 0.0138,
+        "mean_predicted_probability": 0.0462,
+        "observed_positive_rate": 0.0467,
+        "mean_probability_gap": -0.0006,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "predicted_positive_count": 0
+      }
     },
     "30": {
       "positive_count": 16,
       "negative_count": 253,
-      "scale_pos_weight": 15.8125,
-      "validation_pr_auc": 0.7345,
-      "validation_precision_at_0_35": 0.3333,
-      "validation_recall_at_0_35": 0.875,
-      "validation_f1_at_0_35": 0.4828,
-      "validation_true_positive_at_0_35": 7,
-      "validation_false_positive_at_0_35": 14,
-      "validation_true_negative_at_0_35": 85,
-      "validation_false_negative_at_0_35": 1,
-      "validation_positive_count": 8,
-      "validation_negative_count": 99
+      "class_weight": null,
+      "alert_threshold": 0.3,
+      "raw_validation": {
+        "pr_auc": 0.647,
+        "brier_score": 0.0444,
+        "brier_skill_score": 0.3576,
+        "log_loss": 0.1552,
+        "ece_5_bin": 0.0492,
+        "mean_predicted_probability": 0.0853,
+        "observed_positive_rate": 0.0748,
+        "mean_probability_gap": 0.0105,
+        "precision": 0.6364,
+        "recall": 0.875,
+        "f1": 0.7368,
+        "predicted_positive_count": 11
+      },
+      "calibrated_validation": {
+        "pr_auc": 0.647,
+        "brier_score": 0.0405,
+        "brier_skill_score": 0.4143,
+        "log_loss": 0.1382,
+        "ece_5_bin": 0.026,
+        "mean_predicted_probability": 0.0869,
+        "observed_positive_rate": 0.0748,
+        "mean_probability_gap": 0.0121,
+        "precision": 0.6364,
+        "recall": 0.875,
+        "f1": 0.7368,
+        "predicted_positive_count": 11
+      }
     },
     "60": {
       "positive_count": 28,
       "negative_count": 241,
-      "scale_pos_weight": 8.6071,
-      "validation_pr_auc": 0.6807,
-      "validation_precision_at_0_35": 0.5652,
-      "validation_recall_at_0_35": 0.9286,
-      "validation_f1_at_0_35": 0.7027,
-      "validation_true_positive_at_0_35": 13,
-      "validation_false_positive_at_0_35": 10,
-      "validation_true_negative_at_0_35": 83,
-      "validation_false_negative_at_0_35": 1,
-      "validation_positive_count": 14,
-      "validation_negative_count": 93
+      "class_weight": null,
+      "alert_threshold": 0.3,
+      "raw_validation": {
+        "pr_auc": 0.6813,
+        "brier_score": 0.0431,
+        "brier_skill_score": 0.6213,
+        "log_loss": 0.1624,
+        "ece_5_bin": 0.0673,
+        "mean_predicted_probability": 0.1479,
+        "observed_positive_rate": 0.1308,
+        "mean_probability_gap": 0.017,
+        "precision": 0.619,
+        "recall": 0.9286,
+        "f1": 0.7429,
+        "predicted_positive_count": 21
+      },
+      "calibrated_validation": {
+        "pr_auc": 0.6813,
+        "brier_score": 0.0431,
+        "brier_skill_score": 0.6213,
+        "log_loss": 0.1624,
+        "ece_5_bin": 0.0673,
+        "mean_predicted_probability": 0.1479,
+        "observed_positive_rate": 0.1308,
+        "mean_probability_gap": 0.017,
+        "precision": 0.619,
+        "recall": 0.9286,
+        "f1": 0.7429,
+        "predicted_positive_count": 21
+      }
     }
   }
 }

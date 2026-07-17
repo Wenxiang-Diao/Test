@@ -9,9 +9,14 @@ import numpy as np
 import pandas as pd
 
 from app.analytics.bed_exit_xgboost import (
+    ALERT_THRESHOLD,
     WINDOWS,
     build_explanation,
     build_supervised_dataset,
+    calibrated_predict_proba,
+    enforce_horizon_order,
+    fit_platt_calibrated_model,
+    probability_metrics,
     risk_level,
     split_train_validation,
     summarise_split,
@@ -21,6 +26,7 @@ from app.analytics.bed_exit_xgboost import (
 LOGISTIC_FEATURES = [
     "rule_score",
     "hour",
+    "minutes_since_midnight",
     "is_night",
     "is_common_exit_period",
     "heart_rate_delta_from_daily_avg",
@@ -36,7 +42,14 @@ LOGISTIC_FEATURES = [
     "motion_status_ACTIVE",
     "sleep_status_AWAKE",
     "sleep_status_LIGHT_SLEEP",
+    "previous_night_sleep_efficiency",
+    "previous_night_sleep_score",
+    "previous_night_total_sleep_minutes",
+    "previous_night_bed_exit_count",
+    "previous_night_summary_missing",
 ]
+
+REGULARIZATION_C = {15: 0.10, 30: 0.03, 60: 0.03}
 
 
 def build_logistic_dataset(output_dir: str | Path) -> pd.DataFrame:
@@ -86,7 +99,6 @@ def train_logistic_models(
     model_dir: str | Path,
 ) -> dict[str, Any]:
     from sklearn.linear_model import LogisticRegression
-    from sklearn.metrics import average_precision_score, f1_score, precision_score, recall_score
     from sklearn.pipeline import Pipeline
     from sklearn.preprocessing import StandardScaler
 
@@ -96,14 +108,20 @@ def train_logistic_models(
     X_train = train[LOGISTIC_FEATURES]
     X_val = validation[LOGISTIC_FEATURES]
     report: dict[str, Any] = {
-        "model_type": "baseline_rules_plus_logistic_regression",
+        "model_type": "baseline_rules_as_features_plus_probability_calibrated_logistic_regression",
         "feature_columns": LOGISTIC_FEATURES,
         "train": summarise_split("train", train).__dict__,
         "validation": summarise_split("validation", validation).__dict__,
-        "blend": "final_probability = 0.70 * logistic_probability + 0.30 * rule_score",
+        "probability_objective": "unweighted log loss followed by training-only out-of-fold Platt scaling",
+        "rule_usage": "rule_score is an input feature; it is not blended into the final probability",
+        "calibration": "3-fold stratified out-of-fold predictions on the training split",
+        "horizon_constraint": "P15 <= P30 <= P60",
         "models": {},
     }
     validation_predictions = validation[["resident_id", "timestamp", "rule_score"]].copy()
+    raw_probabilities: dict[int, np.ndarray] = {}
+    calibrated_probabilities: dict[int, np.ndarray] = {}
+    bundles: dict[int, dict[str, Any]] = {}
 
     for window in WINDOWS:
         y_train = train[f"y_{window}"]
@@ -113,55 +131,53 @@ def train_logistic_models(
         if pos == 0:
             raise ValueError(f"Cannot train {window} minute logistic model because train positives are zero")
 
-        model = Pipeline(
-            steps=[
-                ("scaler", StandardScaler()),
-                (
-                    "logistic",
-                    LogisticRegression(
-                        class_weight="balanced",
-                        max_iter=1000,
-                        solver="liblinear",
-                        random_state=42,
+        def estimator_factory():
+            return Pipeline(
+                steps=[
+                    ("scaler", StandardScaler()),
+                    (
+                        "logistic",
+                        LogisticRegression(
+                            C=REGULARIZATION_C[window],
+                            class_weight=None,
+                            max_iter=1000,
+                            solver="liblinear",
+                            random_state=42,
+                        ),
                     ),
-                ),
-            ]
+                ]
+            )
+
+        bundle = fit_platt_calibrated_model(estimator_factory, X_train, y_train)
+        bundle["use_calibrator"] = True
+        raw_probabilities[window] = bundle["estimator"].predict_proba(X_val)[:, 1]
+        calibrated_probabilities[window] = calibrated_predict_proba(bundle, X_val)
+        bundles[window] = bundle
+
+    coherent_probabilities = enforce_horizon_order(calibrated_probabilities)
+    for window in WINDOWS:
+        y_val = validation[f"y_{window}"].to_numpy()
+        probabilities = coherent_probabilities[window]
+        predictions = (probabilities >= ALERT_THRESHOLD).astype(int)
+        validation_predictions[f"raw_probability_{window}"] = np.round(raw_probabilities[window], 4)
+        validation_predictions[f"calibrated_probability_{window}"] = np.round(
+            calibrated_probabilities[window], 4
         )
-        model.fit(X_train, y_train)
-        logistic_probabilities = model.predict_proba(X_val)[:, 1]
-        final_probabilities = _blend_with_rule_score(logistic_probabilities, validation["rule_score"].to_numpy())
-        predictions = (final_probabilities >= 0.35).astype(int)
-        y_val_array = y_val.to_numpy()
-
-        true_positive = int(((predictions == 1) & (y_val_array == 1)).sum())
-        false_positive = int(((predictions == 1) & (y_val_array == 0)).sum())
-        true_negative = int(((predictions == 0) & (y_val_array == 0)).sum())
-        false_negative = int(((predictions == 0) & (y_val_array == 1)).sum())
-
-        validation_predictions[f"logistic_probability_{window}"] = np.round(logistic_probabilities, 4)
-        validation_predictions[f"final_probability_{window}"] = np.round(final_probabilities, 4)
-        validation_predictions[f"risk_level_{window}"] = [risk_level(float(p)) for p in final_probabilities]
-        validation_predictions[f"predicted_{window}_at_0_35"] = predictions
-        validation_predictions[f"actual_{window}"] = y_val_array
-
+        validation_predictions[f"probability_{window}"] = np.round(probabilities, 4)
+        validation_predictions[f"risk_level_{window}"] = [risk_level(float(p)) for p in probabilities]
+        validation_predictions[f"predicted_{window}_at_{str(ALERT_THRESHOLD).replace('.', '_')}"] = predictions
+        validation_predictions[f"actual_{window}"] = y_val
         report["models"][str(window)] = {
-            "positive_count": pos,
-            "negative_count": neg,
-            "class_weight": "balanced",
-            "validation_pr_auc": _safe_metric(average_precision_score, y_val, final_probabilities),
-            "validation_precision_at_0_35": _safe_metric(precision_score, y_val, predictions, zero_division=0),
-            "validation_recall_at_0_35": _safe_metric(recall_score, y_val, predictions, zero_division=0),
-            "validation_f1_at_0_35": _safe_metric(f1_score, y_val, predictions, zero_division=0),
-            "validation_true_positive_at_0_35": true_positive,
-            "validation_false_positive_at_0_35": false_positive,
-            "validation_true_negative_at_0_35": true_negative,
-            "validation_false_negative_at_0_35": false_negative,
-            "validation_positive_count": int(y_val.sum()),
-            "validation_negative_count": int(len(y_val) - int(y_val.sum())),
+            "positive_count": int(train[f"y_{window}"].sum()),
+            "negative_count": int(len(train) - train[f"y_{window}"].sum()),
+            "class_weight": None,
+            "regularization_c": REGULARIZATION_C[window],
+            "alert_threshold": ALERT_THRESHOLD,
+            "raw_validation": probability_metrics(y_val, raw_probabilities[window], ALERT_THRESHOLD),
+            "calibrated_validation": probability_metrics(y_val, probabilities, ALERT_THRESHOLD),
         }
-
-        with (model_path / f"bed_exit_logistic_{window}.pkl").open("wb") as fh:
-            pickle.dump(model, fh)
+        with (model_path / f"bed_exit_logistic_calibrated_{window}.pkl").open("wb") as fh:
+            pickle.dump(bundles[window], fh)
 
     validation_predictions.to_csv(model_path / "validation_predictions.csv", index=False)
     with (model_path / "training_report.json").open("w", encoding="utf-8") as fh:
@@ -178,13 +194,15 @@ def predict_with_models(feature_row: pd.DataFrame, model_dir: str | Path) -> dic
             row[feature] = 0
 
     X = row[LOGISTIC_FEATURES]
-    rule_scores = row["rule_score"].to_numpy()
+    raw: dict[int, np.ndarray] = {}
+    for window in WINDOWS:
+        with (Path(model_dir) / f"bed_exit_logistic_calibrated_{window}.pkl").open("rb") as fh:
+            bundle = pickle.load(fh)
+        raw[window] = calibrated_predict_proba(bundle, X)
+    probabilities = enforce_horizon_order(raw)
     windows = []
     for window in WINDOWS:
-        with (Path(model_dir) / f"bed_exit_logistic_{window}.pkl").open("rb") as fh:
-            model = pickle.load(fh)
-        logistic_probability = float(model.predict_proba(X)[:, 1][0])
-        final_probability = float(_blend_with_rule_score(np.array([logistic_probability]), rule_scores)[0])
+        final_probability = float(probabilities[window][0])
         windows.append(
             {
                 "minutes": window,
@@ -195,12 +213,8 @@ def predict_with_models(feature_row: pd.DataFrame, model_dir: str | Path) -> dic
     return {
         "windows": windows,
         "explanation": build_explanation(row.iloc[0]),
-        "model_version": "baseline_rules_logistic_v1",
+        "model_version": "baseline_rules_logistic_calibrated_v3",
     }
-
-
-def _blend_with_rule_score(probabilities: np.ndarray, rule_scores: np.ndarray) -> np.ndarray:
-    return np.clip((0.70 * probabilities) + (0.30 * rule_scores), 0.03, 0.97)
 
 
 def _safe_metric(metric, *args, **kwargs) -> float | None:

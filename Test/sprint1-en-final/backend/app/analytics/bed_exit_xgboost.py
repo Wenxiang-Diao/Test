@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pickle
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -44,7 +45,16 @@ BASE_FEATURES = [
     "sleep_status_LIGHT_SLEEP",
     "sleep_status_NONE",
     "sleep_status_UNKNOWN",
+    "previous_night_sleep_efficiency",
+    "previous_night_sleep_score",
+    "previous_night_total_sleep_minutes",
+    "previous_night_bed_exit_count",
+    "previous_night_summary_missing",
 ]
+
+RISK_MEDIUM_THRESHOLD = 0.10
+RISK_HIGH_THRESHOLD = 0.30
+ALERT_THRESHOLD = 0.30
 
 
 @dataclass(frozen=True)
@@ -57,9 +67,9 @@ class SplitSummary:
 
 
 def risk_level(probability: float) -> str:
-    if probability >= 0.65:
+    if probability >= RISK_HIGH_THRESHOLD:
         return "High"
-    if probability >= 0.35:
+    if probability >= RISK_MEDIUM_THRESHOLD:
         return "Medium"
     return "Low"
 
@@ -152,8 +162,6 @@ def train_xgboost_models(
     except ImportError as exc:
         raise RuntimeError("xgboost is not installed. Install backend requirements before training.") from exc
 
-    from sklearn.metrics import average_precision_score, f1_score, precision_score, recall_score
-
     model_path = Path(model_dir)
     model_path.mkdir(parents=True, exist_ok=True)
 
@@ -163,9 +171,15 @@ def train_xgboost_models(
         "feature_columns": BASE_FEATURES,
         "train": summarise_split("train", train).__dict__,
         "validation": summarise_split("validation", validation).__dict__,
+        "probability_objective": "minimise log loss and calibrate with training-only out-of-fold Platt scaling",
+        "calibration": "3-fold stratified out-of-fold predictions on the training split",
+        "horizon_constraint": "P15 <= P30 <= P60",
         "models": {},
     }
     validation_predictions = validation[["resident_id", "timestamp"]].copy()
+    raw_probabilities: dict[int, np.ndarray] = {}
+    calibrated_probabilities: dict[int, np.ndarray] = {}
+    bundles: dict[int, dict[str, Any]] = {}
 
     for window in WINDOWS:
         y_train = train[f"y_{window}"]
@@ -175,45 +189,49 @@ def train_xgboost_models(
         if pos == 0:
             raise ValueError(f"Cannot train {window} minute model because train positives are zero")
 
-        model = XGBClassifier(
-            objective="binary:logistic",
-            eval_metric="aucpr",
-            max_depth=2,
-            learning_rate=0.05,
-            n_estimators=120,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            scale_pos_weight=neg / pos,
-            random_state=42,
+        def estimator_factory():
+            return XGBClassifier(
+                objective="binary:logistic",
+                eval_metric="logloss",
+                max_depth=2,
+                learning_rate=0.03,
+                n_estimators=100,
+                min_child_weight=3,
+                reg_lambda=3.0,
+                subsample=0.85,
+                colsample_bytree=0.85,
+                random_state=42,
+            )
+
+        bundle = fit_platt_calibrated_model(estimator_factory, X_train, y_train)
+        bundle["use_calibrator"] = window in (15, 30)
+        raw_probabilities[window] = bundle["estimator"].predict_proba(X_val)[:, 1]
+        calibrated_probabilities[window] = calibrated_predict_proba(bundle, X_val)
+        bundles[window] = bundle
+
+    coherent_probabilities = enforce_horizon_order(calibrated_probabilities)
+    for window in WINDOWS:
+        y_val = validation[f"y_{window}"].to_numpy()
+        probabilities = coherent_probabilities[window]
+        predictions = (probabilities >= ALERT_THRESHOLD).astype(int)
+        validation_predictions[f"raw_probability_{window}"] = np.round(raw_probabilities[window], 4)
+        validation_predictions[f"calibrated_probability_{window}"] = np.round(
+            calibrated_probabilities[window], 4
         )
-        model.fit(X_train, y_train)
-        probabilities = model.predict_proba(X_val)[:, 1]
-        predictions = (probabilities >= 0.35).astype(int)
-        y_val_array = y_val.to_numpy()
-        true_positive = int(((predictions == 1) & (y_val_array == 1)).sum())
-        false_positive = int(((predictions == 1) & (y_val_array == 0)).sum())
-        true_negative = int(((predictions == 0) & (y_val_array == 0)).sum())
-        false_negative = int(((predictions == 0) & (y_val_array == 1)).sum())
         validation_predictions[f"probability_{window}"] = np.round(probabilities, 4)
         validation_predictions[f"risk_level_{window}"] = [risk_level(float(p)) for p in probabilities]
-        validation_predictions[f"predicted_{window}_at_0_35"] = predictions
-        validation_predictions[f"actual_{window}"] = y_val_array
+        validation_predictions[f"predicted_{window}_at_{str(ALERT_THRESHOLD).replace('.', '_')}"] = predictions
+        validation_predictions[f"actual_{window}"] = y_val
         report["models"][str(window)] = {
-            "positive_count": pos,
-            "negative_count": neg,
-            "scale_pos_weight": round(neg / pos, 4),
-            "validation_pr_auc": _safe_metric(average_precision_score, y_val, probabilities),
-            "validation_precision_at_0_35": _safe_metric(precision_score, y_val, predictions, zero_division=0),
-            "validation_recall_at_0_35": _safe_metric(recall_score, y_val, predictions, zero_division=0),
-            "validation_f1_at_0_35": _safe_metric(f1_score, y_val, predictions, zero_division=0),
-            "validation_true_positive_at_0_35": true_positive,
-            "validation_false_positive_at_0_35": false_positive,
-            "validation_true_negative_at_0_35": true_negative,
-            "validation_false_negative_at_0_35": false_negative,
-            "validation_positive_count": int(y_val.sum()),
-            "validation_negative_count": int(len(y_val) - int(y_val.sum())),
+            "positive_count": int(train[f"y_{window}"].sum()),
+            "negative_count": int(len(train) - train[f"y_{window}"].sum()),
+            "class_weight": None,
+            "alert_threshold": ALERT_THRESHOLD,
+            "raw_validation": probability_metrics(y_val, raw_probabilities[window], ALERT_THRESHOLD),
+            "calibrated_validation": probability_metrics(y_val, probabilities, ALERT_THRESHOLD),
         }
-        model.save_model(model_path / f"bed_exit_xgb_{window}.json")
+        with (model_path / f"bed_exit_xgb_calibrated_{window}.pkl").open("wb") as fh:
+            pickle.dump(bundles[window], fh)
 
     validation_predictions.to_csv(model_path / "validation_predictions.csv", index=False)
     with (model_path / "training_report.json").open("w", encoding="utf-8") as fh:
@@ -222,17 +240,16 @@ def train_xgboost_models(
 
 
 def predict_with_models(feature_row: pd.DataFrame, model_dir: str | Path) -> dict[str, Any]:
-    try:
-        from xgboost import XGBClassifier
-    except ImportError as exc:
-        raise RuntimeError("xgboost is not installed. Install backend requirements before prediction.") from exc
-
     X = feature_row[BASE_FEATURES]
+    raw: dict[int, np.ndarray] = {}
+    for window in WINDOWS:
+        with (Path(model_dir) / f"bed_exit_xgb_calibrated_{window}.pkl").open("rb") as fh:
+            bundle = pickle.load(fh)
+        raw[window] = calibrated_predict_proba(bundle, X)
+    probabilities = enforce_horizon_order(raw)
     windows = []
     for window in WINDOWS:
-        model = XGBClassifier()
-        model.load_model(Path(model_dir) / f"bed_exit_xgb_{window}.json")
-        probability = float(model.predict_proba(X)[:, 1][0])
+        probability = float(probabilities[window][0])
         windows.append(
             {
                 "minutes": window,
@@ -243,7 +260,7 @@ def predict_with_models(feature_row: pd.DataFrame, model_dir: str | Path) -> dic
     return {
         "windows": windows,
         "explanation": build_explanation(feature_row.iloc[0]),
-        "model_version": "xgboost_bed_exit_v1",
+        "model_version": "xgboost_bed_exit_calibrated_v2",
     }
 
 
@@ -317,21 +334,56 @@ def _add_rolling_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _add_summary_features(df: pd.DataFrame, summary: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
+    df = df.sort_values("timestamp").copy()
+    past_hr = df["heart_rate_bpm"].expanding().mean().shift(1).fillna(df["heart_rate_bpm"])
+    past_rr = df["breathing_rate_per_min"].expanding().mean().shift(1).fillna(df["breathing_rate_per_min"])
     if summary.empty:
-        df["daily_avg_heart_rate"] = df["heart_rate_bpm"].mean()
-        df["daily_avg_breathing_rate"] = df["breathing_rate_per_min"].mean()
+        df["daily_avg_heart_rate"] = past_hr
+        df["daily_avg_breathing_rate"] = past_rr
+        df["previous_night_sleep_efficiency"] = 0.0
+        df["previous_night_sleep_score"] = 0.0
+        df["previous_night_total_sleep_minutes"] = 0.0
+        df["previous_night_bed_exit_count"] = 0.0
+        df["previous_night_summary_missing"] = 1
     else:
-        summary = summary.copy()
-        summary["summary_date"] = summary["date"].dt.date
-        df["summary_date"] = df["timestamp"].dt.date
-        df = df.merge(
-            summary[["summary_date", "avg_heart_rate", "avg_breathing_rate"]],
-            on="summary_date",
-            how="left",
+        previous = summary.copy().sort_values("date")
+        previous["available_at"] = previous["date"] + pd.Timedelta(days=1)
+        previous = previous.rename(
+            columns={
+                "avg_heart_rate": "previous_avg_heart_rate",
+                "avg_breathing_rate": "previous_avg_breathing_rate",
+                "sleep_efficiency": "previous_night_sleep_efficiency",
+                "sleep_score": "previous_night_sleep_score",
+                "total_sleep_minutes": "previous_night_total_sleep_minutes",
+                "bed_exit_count": "previous_night_bed_exit_count",
+            }
         )
-        df["daily_avg_heart_rate"] = df["avg_heart_rate"].fillna(df["heart_rate_bpm"].mean())
-        df["daily_avg_breathing_rate"] = df["avg_breathing_rate"].fillna(df["breathing_rate_per_min"].mean())
+        keep = [
+            "available_at",
+            "previous_avg_heart_rate",
+            "previous_avg_breathing_rate",
+            "previous_night_sleep_efficiency",
+            "previous_night_sleep_score",
+            "previous_night_total_sleep_minutes",
+            "previous_night_bed_exit_count",
+        ]
+        df = pd.merge_asof(
+            df.sort_values("timestamp"),
+            previous[keep].sort_values("available_at"),
+            left_on="timestamp",
+            right_on="available_at",
+            direction="backward",
+        )
+        df["daily_avg_heart_rate"] = df["previous_avg_heart_rate"].fillna(past_hr)
+        df["daily_avg_breathing_rate"] = df["previous_avg_breathing_rate"].fillna(past_rr)
+        df["previous_night_summary_missing"] = df["previous_night_sleep_score"].isna().astype(int)
+        for column in [
+            "previous_night_sleep_efficiency",
+            "previous_night_sleep_score",
+            "previous_night_total_sleep_minutes",
+            "previous_night_bed_exit_count",
+        ]:
+            df[column] = df[column].fillna(0.0)
     df["heart_rate_delta_from_daily_avg"] = df["heart_rate_bpm"] - df["daily_avg_heart_rate"]
     df["breathing_rate_delta_from_daily_avg"] = df["breathing_rate_per_min"] - df["daily_avg_breathing_rate"]
     return df
@@ -398,3 +450,82 @@ def _safe_metric(metric, *args, **kwargs) -> float | None:
         return round(float(value), 4)
     except ValueError:
         return None
+
+
+def fit_platt_calibrated_model(estimator_factory, X: pd.DataFrame, y: pd.Series) -> dict[str, Any]:
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.model_selection import StratifiedKFold
+
+    splitter = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+    out_of_fold = np.zeros(len(X), dtype=float)
+    for train_indices, calibration_indices in splitter.split(X, y):
+        fold_model = estimator_factory()
+        fold_model.fit(X.iloc[train_indices], y.iloc[train_indices])
+        out_of_fold[calibration_indices] = fold_model.predict_proba(X.iloc[calibration_indices])[:, 1]
+    calibrator = LogisticRegression(C=1.0, solver="liblinear", random_state=42)
+    calibrator.fit(_logit_feature(out_of_fold), y)
+    estimator = estimator_factory()
+    estimator.fit(X, y)
+    return {"estimator": estimator, "calibrator": calibrator}
+
+
+def calibrated_predict_proba(bundle: dict[str, Any], X: pd.DataFrame) -> np.ndarray:
+    raw = bundle["estimator"].predict_proba(X)[:, 1]
+    if not bundle.get("use_calibrator", True):
+        return raw
+    return bundle["calibrator"].predict_proba(_logit_feature(raw))[:, 1]
+
+
+def enforce_horizon_order(probabilities: dict[int, np.ndarray]) -> dict[int, np.ndarray]:
+    ordered = np.vstack([probabilities[window] for window in WINDOWS]).T
+    ordered = np.maximum.accumulate(ordered, axis=1)
+    return {window: ordered[:, index] for index, window in enumerate(WINDOWS)}
+
+
+def probability_metrics(y_true: np.ndarray, probabilities: np.ndarray, threshold: float) -> dict[str, Any]:
+    from sklearn.metrics import (
+        average_precision_score,
+        brier_score_loss,
+        f1_score,
+        log_loss,
+        precision_score,
+        recall_score,
+    )
+
+    predictions = (probabilities >= threshold).astype(int)
+    observed_rate = float(np.mean(y_true))
+    brier = float(brier_score_loss(y_true, probabilities))
+    baseline_brier = observed_rate * (1.0 - observed_rate)
+    return {
+        "pr_auc": _safe_metric(average_precision_score, y_true, probabilities),
+        "brier_score": round(brier, 4),
+        "brier_skill_score": round(1.0 - (brier / baseline_brier), 4) if baseline_brier else None,
+        "log_loss": _safe_metric(log_loss, y_true, probabilities, labels=[0, 1]),
+        "ece_5_bin": expected_calibration_error(y_true, probabilities, bins=5),
+        "mean_predicted_probability": round(float(np.mean(probabilities)), 4),
+        "observed_positive_rate": round(observed_rate, 4),
+        "mean_probability_gap": round(float(np.mean(probabilities)) - observed_rate, 4),
+        "precision": _safe_metric(precision_score, y_true, predictions, zero_division=0),
+        "recall": _safe_metric(recall_score, y_true, predictions, zero_division=0),
+        "f1": _safe_metric(f1_score, y_true, predictions, zero_division=0),
+        "predicted_positive_count": int(predictions.sum()),
+    }
+
+
+def expected_calibration_error(y_true: np.ndarray, probabilities: np.ndarray, bins: int = 5) -> float:
+    boundaries = np.linspace(0.0, 1.0, bins + 1)
+    total = len(y_true)
+    error = 0.0
+    for index in range(bins):
+        if index == bins - 1:
+            mask = (probabilities >= boundaries[index]) & (probabilities <= boundaries[index + 1])
+        else:
+            mask = (probabilities >= boundaries[index]) & (probabilities < boundaries[index + 1])
+        if mask.any():
+            error += (mask.sum() / total) * abs(float(np.mean(y_true[mask])) - float(np.mean(probabilities[mask])))
+    return round(error, 4)
+
+
+def _logit_feature(probabilities: np.ndarray) -> np.ndarray:
+    clipped = np.clip(probabilities, 1e-6, 1.0 - 1e-6)
+    return np.log(clipped / (1.0 - clipped)).reshape(-1, 1)

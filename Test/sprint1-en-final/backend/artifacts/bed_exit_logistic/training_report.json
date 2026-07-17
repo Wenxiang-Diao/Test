@@ -1,8 +1,9 @@
 {
-  "model_type": "baseline_rules_plus_logistic_regression",
+  "model_type": "baseline_rules_as_features_plus_probability_calibrated_logistic_regression",
   "feature_columns": [
     "rule_score",
     "hour",
+    "minutes_since_midnight",
     "is_night",
     "is_common_exit_period",
     "heart_rate_delta_from_daily_avg",
@@ -17,7 +18,12 @@
     "activity_status_ACTIVE",
     "motion_status_ACTIVE",
     "sleep_status_AWAKE",
-    "sleep_status_LIGHT_SLEEP"
+    "sleep_status_LIGHT_SLEEP",
+    "previous_night_sleep_efficiency",
+    "previous_night_sleep_score",
+    "previous_night_total_sleep_minutes",
+    "previous_night_bed_exit_count",
+    "previous_night_summary_missing"
   ],
   "train": {
     "name": "train",
@@ -57,52 +63,115 @@
       "60": 6.6429
     }
   },
-  "blend": "final_probability = 0.70 * logistic_probability + 0.30 * rule_score",
+  "probability_objective": "unweighted log loss followed by training-only out-of-fold Platt scaling",
+  "rule_usage": "rule_score is an input feature; it is not blended into the final probability",
+  "calibration": "3-fold stratified out-of-fold predictions on the training split",
+  "horizon_constraint": "P15 <= P30 <= P60",
   "models": {
     "15": {
       "positive_count": 10,
       "negative_count": 259,
-      "class_weight": "balanced",
-      "validation_pr_auc": 0.4832,
-      "validation_precision_at_0_35": 0.2,
-      "validation_recall_at_0_35": 1.0,
-      "validation_f1_at_0_35": 0.3333,
-      "validation_true_positive_at_0_35": 5,
-      "validation_false_positive_at_0_35": 20,
-      "validation_true_negative_at_0_35": 82,
-      "validation_false_negative_at_0_35": 0,
-      "validation_positive_count": 5,
-      "validation_negative_count": 102
+      "class_weight": null,
+      "regularization_c": 0.1,
+      "alert_threshold": 0.3,
+      "raw_validation": {
+        "pr_auc": 0.5578,
+        "brier_score": 0.0403,
+        "brier_skill_score": 0.0944,
+        "log_loss": 0.186,
+        "ece_5_bin": 0.1084,
+        "mean_predicted_probability": 0.1488,
+        "observed_positive_rate": 0.0467,
+        "mean_probability_gap": 0.1021,
+        "precision": 0.5714,
+        "recall": 0.8,
+        "f1": 0.6667,
+        "predicted_positive_count": 7
+      },
+      "calibrated_validation": {
+        "pr_auc": 0.5578,
+        "brier_score": 0.0275,
+        "brier_skill_score": 0.3818,
+        "log_loss": 0.0965,
+        "ece_5_bin": 0.0289,
+        "mean_predicted_probability": 0.0545,
+        "observed_positive_rate": 0.0467,
+        "mean_probability_gap": 0.0077,
+        "precision": 0.5,
+        "recall": 0.6,
+        "f1": 0.5455,
+        "predicted_positive_count": 6
+      }
     },
     "30": {
       "positive_count": 16,
       "negative_count": 253,
-      "class_weight": "balanced",
-      "validation_pr_auc": 0.3452,
-      "validation_precision_at_0_35": 0.3333,
-      "validation_recall_at_0_35": 1.0,
-      "validation_f1_at_0_35": 0.5,
-      "validation_true_positive_at_0_35": 8,
-      "validation_false_positive_at_0_35": 16,
-      "validation_true_negative_at_0_35": 83,
-      "validation_false_negative_at_0_35": 0,
-      "validation_positive_count": 8,
-      "validation_negative_count": 99
+      "class_weight": null,
+      "regularization_c": 0.03,
+      "alert_threshold": 0.3,
+      "raw_validation": {
+        "pr_auc": 0.5841,
+        "brier_score": 0.0837,
+        "brier_skill_score": -0.21,
+        "log_loss": 0.3245,
+        "ece_5_bin": 0.1905,
+        "mean_predicted_probability": 0.258,
+        "observed_positive_rate": 0.0748,
+        "mean_probability_gap": 0.1833,
+        "precision": 0.2963,
+        "recall": 1.0,
+        "f1": 0.4571,
+        "predicted_positive_count": 27
+      },
+      "calibrated_validation": {
+        "pr_auc": 0.5929,
+        "brier_score": 0.0457,
+        "brier_skill_score": 0.3388,
+        "log_loss": 0.1501,
+        "ece_5_bin": 0.0086,
+        "mean_predicted_probability": 0.0804,
+        "observed_positive_rate": 0.0748,
+        "mean_probability_gap": 0.0056,
+        "precision": 0.6667,
+        "recall": 0.5,
+        "f1": 0.5714,
+        "predicted_positive_count": 6
+      }
     },
     "60": {
       "positive_count": 28,
       "negative_count": 241,
-      "class_weight": "balanced",
-      "validation_pr_auc": 0.7106,
-      "validation_precision_at_0_35": 0.56,
-      "validation_recall_at_0_35": 1.0,
-      "validation_f1_at_0_35": 0.7179,
-      "validation_true_positive_at_0_35": 14,
-      "validation_false_positive_at_0_35": 11,
-      "validation_true_negative_at_0_35": 82,
-      "validation_false_negative_at_0_35": 0,
-      "validation_positive_count": 14,
-      "validation_negative_count": 93
+      "class_weight": null,
+      "regularization_c": 0.03,
+      "alert_threshold": 0.3,
+      "raw_validation": {
+        "pr_auc": 0.6707,
+        "brier_score": 0.0958,
+        "brier_skill_score": 0.1574,
+        "log_loss": 0.355,
+        "ece_5_bin": 0.1887,
+        "mean_predicted_probability": 0.2968,
+        "observed_positive_rate": 0.1308,
+        "mean_probability_gap": 0.166,
+        "precision": 0.56,
+        "recall": 1.0,
+        "f1": 0.7179,
+        "predicted_positive_count": 25
+      },
+      "calibrated_validation": {
+        "pr_auc": 0.6707,
+        "brier_score": 0.0584,
+        "brier_skill_score": 0.4863,
+        "log_loss": 0.1767,
+        "ece_5_bin": 0.0402,
+        "mean_predicted_probability": 0.146,
+        "observed_positive_rate": 0.1308,
+        "mean_probability_gap": 0.0151,
+        "precision": 0.619,
+        "recall": 0.9286,
+        "f1": 0.7429,
+        "predicted_positive_count": 21
+      }
     }
   }
 }
