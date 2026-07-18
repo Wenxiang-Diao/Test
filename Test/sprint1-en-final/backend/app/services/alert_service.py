@@ -4,6 +4,14 @@ from sqlalchemy.orm import Session
 
 from app.models.models import Alert
 from app.repositories.repositories import AlertRepository, EventRepository, SummaryRepository, VitalRepository
+from app.services.alert_explanation import (
+    explain_abnormal_heart_rate,
+    explain_long_out_of_bed,
+    explain_low_device_confidence,
+    explain_no_person_detected,
+    explain_repeated_bed_exits,
+    explain_vital_data_quality,
+)
 from app.services.baseline_service import BaselineService
 
 
@@ -47,7 +55,7 @@ class AlertRuleService:
                 if duration_min > threshold * 1.5:
                     created.append(self._create(
                         resident_id, "Long out-of-bed event", "High",
-                        f"Approximately {duration_min - threshold:.0f} minutes above baseline",
+                        explain_long_out_of_bed(duration_min, threshold),
                         "Go and check on the resident",
                     ))
 
@@ -55,7 +63,10 @@ class AlertRuleService:
             if summary.bed_exit_count > baseline["avg_bed_exit_count_30d"] * 1.5:
                 created.append(self._create(
                     resident_id, "Repeated bed exits", "Medium",
-                    f"{summary.bed_exit_count} bed exits tonight, above 30-day average",
+                    explain_repeated_bed_exits(
+                        summary.bed_exit_count,
+                        baseline["avg_bed_exit_count_30d"],
+                    ),
                     "Monitor night-time activity pattern",
                 ))
 
@@ -66,9 +77,15 @@ class AlertRuleService:
                 or v.heart_rate_bpm < baseline["heart_rate_baseline_low"]
             ]
             if len(abnormal) >= 3:
+                latest_abnormal = abnormal[-1]
                 created.append(self._create(
                     resident_id, "Sustained abnormal heart rate", "Medium",
-                    f"{len(abnormal)} consecutive readings outside personal baseline",
+                    explain_abnormal_heart_rate(
+                        abnormal_count=len(abnormal),
+                        latest_heart_rate=latest_abnormal.heart_rate_bpm,
+                        baseline_low=baseline.get("heart_rate_baseline_low"),
+                        baseline_high=baseline.get("heart_rate_baseline_high"),
+                    ),
                     "Check resident's physical condition",
                 ))
 
@@ -77,14 +94,14 @@ class AlertRuleService:
             if hour >= 22 or hour <= 6:
                 created.append(self._create(
                     resident_id, "No person detected", "High",
-                    "No person detected during scheduled sleep period",
+                    explain_no_person_detected(hour),
                     "Go to the room immediately to confirm",
                 ))
 
         if latest and latest.confidence < 0.5:
             created.append(self._create(
                 resident_id, "Low device confidence", "Low",
-                f"confidence={latest.confidence:.2f}; data quality uncertain",
+                explain_low_device_confidence(latest.confidence),
                 "Check device placement and connection",
             ))
 
@@ -92,7 +109,7 @@ class AlertRuleService:
         if len(low_conf_vitals) >= 3:
             created.append(self._create(
                 resident_id, "Device data quality issue", "Low",
-                "Multiple consecutive vital-sign readings with low confidence",
+                explain_vital_data_quality([v.confidence for v in low_conf_vitals]),
                 "Inspect the sensor",
             ))
 
