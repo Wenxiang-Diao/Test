@@ -9,6 +9,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from app.services.alert_explanation import explain_model_risk
+
 
 WINDOWS = (15, 30, 60)
 FREQUENCY = "5min"
@@ -265,22 +267,7 @@ def predict_with_models(feature_row: pd.DataFrame, model_dir: str | Path) -> dic
 
 
 def build_explanation(row: pd.Series) -> str:
-    reasons: list[str] = []
-    if row.get("movement_slope_10m", 0) > 0:
-        reasons.append("recent movement increased")
-    if row.get("sleep_status_AWAKE", 0) == 1:
-        reasons.append("sleep status is awake")
-    if row.get("heart_rate_delta_from_daily_avg", 0) > 5:
-        reasons.append("heart rate is above the resident's recent average")
-    if row.get("breathing_rate_delta_from_daily_avg", 0) > 2:
-        reasons.append("breathing rate is above the resident's recent average")
-    if row.get("is_common_exit_period", 0) == 1:
-        reasons.append("the time is close to observed bed-exit periods")
-    if row.get("bed_exit_count_so_far", 0) > 0:
-        reasons.append("the resident has already left bed earlier tonight")
-    if not reasons:
-        reasons.append("no strong pre-exit signal was detected")
-    return "Risk is based on " + ", ".join(reasons[:3]) + "."
+    return explain_model_risk(row)
 
 
 def _read_csv(path: Path, parse_dates: list[str]) -> pd.DataFrame:
